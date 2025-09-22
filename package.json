@@ -1,0 +1,28 @@
+{
+  "name": "audio-tools-bot",
+  "version": "0.1.0",
+  "description": "Telegram bot on Telegraf that converts audio files into Telegram voice messages.",
+  "main": "src/bot.js",
+  "scripts": {
+    "start": "node src/bot.js",
+    "dev": "NODE_ENV=development node --watch src/bot.js"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "audio",
+    "telegraf"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
+    "ffmpeg-static": "^5.2.0",
+    "fluent-ffmpeg": "^2.1.2",
+    "telegraf": "^4.16.3"
+  }
+}
