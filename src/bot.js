@@ -164,6 +164,38 @@ function extractTimecodesFromMessage(message) {
   }
 }
 
+function getAudioFromMessage(message) {
+  if (!message) {
+    return null;
+  }
+
+  if (message.audio) {
+    const audio = message.audio;
+    return {
+      fileId: audio.file_id,
+      fileName: audio.file_name || audio.file_unique_id
+    };
+  }
+
+  if (message.document && isAudioDocument(message.document)) {
+    const document = message.document;
+    return {
+      fileId: document.file_id,
+      fileName: document.file_name || document.file_unique_id
+    };
+  }
+
+  if (message.voice) {
+    const voice = message.voice;
+    return {
+      fileId: voice.file_id,
+      fileName: voice.file_unique_id
+    };
+  }
+
+  return null;
+}
+
 bot.start((ctx) => ctx.reply('Отправь аудиофайл, и я верну готовое голосовое сообщение.'));
 
 bot.on('audio', async (ctx) => {
@@ -188,6 +220,11 @@ bot.on('audio', async (ctx) => {
   } catch (error) {
     console.error('Ошибка при обработке audio сообщения:', error);
     await ctx.reply('Не получилось обработать файл. Попробуй ещё раз позже.');
+    return;
+  }
+
+  if (!trimRange) {
+    await ctx.reply('Если нужен фрагмент, ответь на отправленный аудио-файл сообщением с таймкодами формата "0:40".');
   }
 });
 
@@ -224,6 +261,51 @@ bot.on('document', async (ctx, next) => {
   } catch (error) {
     console.error('Ошибка при обработке document сообщения:', error);
     await ctx.reply('Не получилось обработать файл. Попробуй ещё раз позже.');
+    return;
+  }
+
+  if (!trimRange) {
+    await ctx.reply('Если нужен фрагмент, ответь на отправленный аудио-файл сообщением с таймкодами формата "0:40".');
+  }
+});
+
+bot.on('text', async (ctx, next) => {
+  const rawText = ctx.message.text || '';
+  let trimRange = null;
+
+  try {
+    trimRange = parseTimecodes(rawText);
+  } catch (error) {
+    if (error instanceof TimecodeParseError) {
+      await ctx.reply('Не удалось понять таймкоды. Используй формат "0:40", где числа — секунды начала и конца.');
+      return;
+    }
+
+    console.error('Ошибка при разборе таймкодов (text):', error);
+    await ctx.reply('Произошла ошибка при разборе таймкодов. Попробуй позже.');
+    return;
+  }
+
+  if (!trimRange) {
+    if (next) {
+      return next();
+    }
+    return;
+  }
+
+  const repliedMessage = ctx.message.reply_to_message;
+  const audioSource = getAudioFromMessage(repliedMessage);
+
+  if (!audioSource) {
+    await ctx.reply('Отправь таймкоды ответом на то аудио, которое нужно обрезать (например, ответом "0:40").');
+    return;
+  }
+
+  try {
+    await processAudio(ctx, audioSource.fileId, audioSource.fileName, trimRange);
+  } catch (error) {
+    console.error('Ошибка при обработке таймкодов для текста:', error);
+    await ctx.reply('Не получилось обрезать файл. Попробуй ещё раз позже.');
   }
 });
 
